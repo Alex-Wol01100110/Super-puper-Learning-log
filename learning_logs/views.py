@@ -9,19 +9,25 @@ def index(request):
     """The home page for Learning Log."""
     return render(request, 'learning_logs/index.html')
 
-@login_required
 def topics(request):
     """Show all topics."""
-    topics = Topic.objects.filter(owner=request.user).order_by('date_added')
-    context = {'topics': topics}
+    topics = Topic.objects.all()
+    # From here to row 20 work partly. only for registered user
+    if request.user.is_authenticated:
+        personal_topics = topics.filter(public=False, owner=request.user).order_by('date_added')
+        public_topics = topics.filter(public=True).order_by('date_added')
+        context = {'personal_topics': personal_topics, 'public_topics': public_topics,}
+    else:
+        public_topics = topics.filter(public=True).order_by('date_added')
+        context = {'public_topics': public_topics,}
     return render(request, 'learning_logs/topics.html', context)
 
-@login_required
 def topic(request, topic_id):
     """Show a single topic and all its entries."""
     topic = get_object_or_404(Topic, id=topic_id)
     # Make sure the topic belongs to the current user.
-    check_topic_owner(topic.owner, request)
+    if topic.public == False:
+        check_owner(topic.owner, request)
     entries = topic.entry_set.order_by('-date_added')
     context = {'topic': topic, 'entries': entries}
     return render(request, 'learning_logs/topic.html', context)
@@ -44,6 +50,25 @@ def new_topic(request):
     # Display a blank or invalid form.
     context = {'form': form}
     return render(request, 'learning_logs/new_topic.html', context)
+    
+@login_required
+def edit_topic(request, topic_id):
+    """Edit an existing topic."""
+    topic = get_object_or_404(Topic, id=topic_id)
+    check_owner(topic.owner, request)
+        
+    if request.method != 'POST':
+        # Initial request; pre-fill form with the current entry.
+        form = TopicForm(instance=topic)
+    else:
+        # POST data submitted; process data.
+        form = TopicForm(instance=topic, data=request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('learning_logs:topics')
+    
+    context = {'topic': topic, 'form': form}
+    return render(request, 'learning_logs/edit_topic.html', context)
 
 @login_required
 def new_entry(request, topic_id):
@@ -52,7 +77,6 @@ def new_entry(request, topic_id):
     
     if request.method != 'POST':
         # No data sumbitted; create a blank form.
-        check_topic_owner(topic.owner, request)
         form = EntryForm()
     else:
         # POST data submitted; process data.
@@ -72,7 +96,7 @@ def edit_entry(request, entry_id):
     """Edit an existing entry."""
     entry = get_object_or_404(Entry, id=entry_id)
     topic = entry.topic
-    check_topic_owner(topic.owner, request)
+    check_owner(topic.owner, request)
         
     if request.method != 'POST':
         # Initial request; pre-fill form with the current entry.
@@ -87,7 +111,7 @@ def edit_entry(request, entry_id):
     context = {'entry': entry, 'topic': topic, 'form': form}
     return render(request, 'learning_logs/edit_entry.html', context)
 
-def check_topic_owner(owner, request):
-    """Check if logged user match requested topic."""
+def check_owner(owner, request):
+    """Check if logged user match requested topic or entry."""
     if owner != request.user:
         raise Http404

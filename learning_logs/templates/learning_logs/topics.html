@@ -1,19 +1,41 @@
 {% extends "learning_logs/base.html" %}
 
 {% block page_header %}
-  <h1>Topics</h1>
+  <h1>Personal Topics</h1>
 {% endblock page_header %}
 
 {% block content %}
+{% if user.is_authenticated %}
   <ul>
-    {% for topic in topics %}
+    {% for topic in personal_topics %}
       <li><h3>
         <a href="{% url 'learning_logs:topic' topic.id %}">{{ topic }}</a>  
       </h3></li>
+        <small><a href="{% url 'learning_logs:edit_topic' topic.id %}">
+        edit topic</a></small>
     {% empty %}
       <li><h3>No topics have been added yet.</h3></li>
     {% endfor %}
   </ul>
 
 <h3><a href="{% url 'learning_logs:new_topic' %}">Add a new topic</a></h3>
+{% else %}
+  <h3>You need to log in or register, if you want to create personal topics.</h3>
+{% endif %}
+<hr>
+
+  <h1>Public Topics</h1>
+
+  <ul>
+    {% for topic in public_topics %}
+      <li><h3>
+        <a href="{% url 'learning_logs:topic' topic.id %}">{{ topic }}</a>  
+      </h3></li>
+        <small><a href="{% url 'learning_logs:edit_topic' topic.id %}">
+        edit topic</a></small>
+    {% empty %}
+      <li><h3>No public topics have been added yet.</h3></li>
+    {% endfor %}
+  </ul>
+
 {% endblock content %}
